@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="软萌记账本">
+<title>🍡 软萌记账本</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif}
+body{background:#fff5f8;color:#444;padding:14px;min-height:100vh;transition: background 0.3s, color 0.3s;}
+:root{
+  --main:#f2849e;
+  --light:#ffe6ed;
+  --card:#ffffff;
+  --text:#444;
+  --danger:#f79a9a;
+  --success:#86d1a8;
+  --voice:#99a8f7;
+  --ocr:#f7c486;
+}
+.theme-purple{
+  --main:#b494d8;
+  --light:#f0e6f8;
+  --card:#ffffff;
+  --text:#444;
+}
+.theme-green{
+  --main:#76c9b8;
+  --light:#e6f7f4;
+  --card:#ffffff;
+  --text:#444;
+}
+.theme-cream{
+  --main:#c9a87c;
+  --light:#fff5e6;
+  --card:#fffbf2;
+  --text:#554b3f;
+}
+h2{color:var(--main);text-align:center;margin-bottom:16px;font-size:22px}
+.card{background:var(--card);border-radius:24px;padding:16px;margin-bottom:16px;box-shadow:0 3px 14px rgba(0,0,0,0.06)}
+.flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+input,select,button,textarea{padding:12px 14px;border:1px solid var(--light);border-radius:18px;font-size:16px;background:#fff}
+.flex input,.flex select,.flex button{flex:1;min-width:110px}
+button{cursor:pointer;background:var(--main);color:#fff;border:none;font-weight:500;transition:0.2s ease;transform:scale(1)}
+button:active{transform:scale(0.96)}
+button.danger{background:var(--danger)}
+button.success{background:var(--success)}
+button.voice{background:var(--voice)}
+button.ocr{background:var(--ocr)}
+.tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px}
+.tab{padding:11px 14px;background:var(--light);border-radius:18px;cursor:pointer;white-space:nowrap;font-size:14px;color:var(--main);font-weight:500}
+.tab.active{background:var(--main);color:#fff}
+.chart-box{height:260px;width:100%;margin:8px 0}
+.hide{display:none}
+.red{color:#f47174;font-weight:500}
+.green{color:#52b878;font-weight:500}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+th,td{border:1px solid var(--light);padding:10px;text-align:left;border-radius:10px}
+th{background:var(--light)}
+.ai-chat{height:320px;overflow-y:auto;padding:12px;background:var(--light);border-radius:20px;margin-bottom:12px}
+.msg{margin:8px 0;padding:10px 12px;border-radius:16px;max-width:85%}
+.msg-user{background:var(--main);color:#fff;margin-left:auto}
+.msg-ai{background:#fff;border:1px solid var(--light);margin-right:auto}
+.ai-input-area{display:flex;gap:8px}
+textarea{flex:1;resize:none;height:50px}
+#previewImg{max-width:100%;border-radius:18px;margin:8px 0}
+.theme-btn{padding:8px 10px;font-size:13px;border-radius:14px;margin:3px}
+.star-popup{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);font-size:48px;pointer-events:none;opacity:0;transition:opacity 0.6s}
+.star-popup.show{opacity:1}
+/* 日历样式 */
+.calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.calendar-day-name{text-align:center;padding:4px;font-size:13px;color:#888}
+.calendar-date{aspect-ratio:1/1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;border:1px solid var(--light);cursor:pointer}
+.calendar-date.has-data{background:var(--light)}
+.calendar-date.today{border:2px solid var(--main)}
+.calendar-date.empty{border:none;background:transparent}
+.calendar-mini{font-size:10px}
+.popup-mask{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;padding:16px;z-index:99}
+.popup-mask.show{display:flex}
+.popup-box{background:#fff;border-radius:22px;padding:16px;width:100%;max-width:360px;max-height:70vh;overflow-y:auto}
+.popup-close{text-align:right;margin-bottom:8px}
+.popup-close button{padding:6px 10px;font-size:14px}
+/* 设置页图标上传 */
+#iconPreview{width:80px;height:80px;border-radius:18px;object-fit:cover;margin:8px 0;border:1px solid var(--light)}
+</style>
+</head>
+<body>
+<h2>🍡 软萌记账本</h2>
+<div class="card" style="padding:10px">
+  <div class="flex-between">
+    <span style="font-size:14px;color:var(--main)">🎨 切换皮肤</span>
+    <div class="flex">
+      <button class="theme-btn" onclick="setTheme('')">蜜桃粉</button>
+      <button class="theme-btn" onclick="setTheme('theme-purple')">奶芋紫</button>
+      <button class="theme-btn" onclick="setTheme('theme-green')">薄荷绿</button>
+      <button class="theme-btn" onclick="setTheme('theme-cream')">奶米白</button>
+    </div>
+  </div>
+</div>
+<div class="tabs">
+  <div class="tab active" data-tab="add">✏️ 记一笔</div>
+  <div class="tab" data-tab="ai">🤖 AI助手</div>
+  <div class="tab" data-tab="calendar">📅 月度日历</div>
+  <div class="tab" data-tab="list">📋 账单列表</div>
+  <div class="tab" data-tab="stat">📊 统计报表</div>
+  <div class="tab" data-tab="budget">🎀 预算</div>
+  <div class="tab" data-tab="account">💰 账户</div>
+  <div class="tab" data-tab="setting">⚙️ 设置</div>
+</div>
+
+<!-- 记一笔 -->
+<div class="card tab-content" id="add">
+  <h3>✨ 新增收支</h3>
+  <div class="flex">
+    <select id="type">
+      <option value="exp">💸 支出</option>
+      <option value="inc">💵 收入</option>
+      <option value="trans">🔄 转账</option>
+    </select>
+    <input id="money" type="number" placeholder="金额" step="0.01">
+    <select id="cate"></select>
+    <select id="fromAcc"></select>
+    <select id="toAcc" class="hide"></select>
+    <input id="remark" placeholder="备注">
+    <input id="date" type="date">
+    <select id="book"></select>
+    <button onclick="addBill()">保存记账</button>
+  </div>
+</div>
+
+<!-- AI助手 -->
+<div class="card tab-content hide" id="ai">
+  <h3>🤖 AI记账小团子</h3>
+  <div class="ai-chat" id="chatBox">
+    <div class="msg msg-ai">哈喽～我是你的记账小团子🍡<br>✅ 语音说话记账<br>✅ 拍照小票识别<br>例子：奶茶22元，打车16，工资5000</div>
+  </div>
+  <img id="previewImg" class="hide">
+  <input type="file" id="imgUpload" accept="image/*" capture="environment" class="hide">
+  <div class="flex" style="margin-bottom:10px">
+    <button class="voice" onclick="startVoiceRec()">🎤 语音说账单</button>
+    <button class="ocr" onclick="document.getElementById('imgUpload').click()">📷 拍照小票识别</button>
+    <button class="success" onclick="clearChat()">清空对话</button>
+  </div>
+  <div class="ai-input-area">
+    <textarea id="aiInput" placeholder="直接打字告诉AI你的消费..."></textarea>
+    <button onclick="sendAiMsg()">发送</button>
+  </div>
+</div>
+
+<!-- 月度日历 -->
+<div class="card tab-content hide" id="calendar">
+  <div class="calendar-header">
+    <button onclick="changeMonth(-1)">◀ 上月</button>
+    <h3 id="calTitle">2026年11月</h3>
+    <button onclick="changeMonth(1)">下月 ▶</button>
+  </div>
+  <div class="calendar-grid">
+    <div class="calendar-day-name">日</div>
+    <div class="calendar-day-name">一</div>
+    <div class="calendar-day-name">二</div>
+    <div class="calendar-day-name">三</div>
+    <div class="calendar-day-name">四</div>
+    <div class="calendar-day-name">五</div>
+    <div class="calendar-day-name">六</div>
+  </div>
+  <div class="calendar-grid" id="calBody"></div>
+</div>
+
+<!-- 日历弹窗 -->
+<div class="popup-mask" id="dayPopup">
+  <div class="popup-box">
+    <div class="popup-close"><button onclick="closeDayPopup()">关闭</button></div>
+    <h4 id="popupDayTitle"></h4>
+    <div id="popupBillList"></div>
+  </div>
+</div>
+
+<!-- 账单列表 -->
+<div class="card tab-content hide" id="list">
+  <div class="flex-between">
+    <h3>📋 账单记录</h3>
+    <div>
+      <button class="success" onclick="exportExcel()">导出CSV</button>
+      <button class="danger" onclick="clearAll()">清空全部</button>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>日期</th><th>类型</th><th>分类</th><th>金额</th><th>账户</th><th>备注</th><th>账本</th><th>操作</th></tr></thead>
+    <tbody id="billTable"></tbody>
+  </table>
+</div>
+
+<!-- 统计 -->
+<div class="card tab-content hide" id="stat">
+  <h3>📊 收支统计</h3>
+  <div class="chart-box"><canvas id="pieChart"></canvas></div>
+  <div class="chart-box"><canvas id="lineChart"></canvas></div>
+  <div id="sumInfo"></div>
+  <div class="star-popup" id="starPop">✨</div>
+</div>
+
+<!-- 预算 -->
+<div class="card tab-content hide" id="budget">
+  <h3>🎀 月度预算设置</h3>
+  <div class="flex">
+    <select id="budCate"></select>
+    <input id="budVal" type="number" placeholder="预算金额" step="0.01">
+    <button onclick="saveBudget()">保存预算</button>
+  </div>
+  <div id="budList"></div>
+</div>
+
+<!-- 账户 -->
+<div class="card tab-content hide" id="account">
+  <h3>💰 账户管理</h3>
+  <div class="flex">
+    <input id="accName" placeholder="账户名称">
+    <input id="accBal" type="number" placeholder="初始余额" step="0.01">
+    <button onclick="addAccount()">新增账户</button>
+  </div>
+  <div id="accList"></div>
+</div>
+
+<!-- 设置页：自定义图标 -->
+<div class="card tab-content hide" id="setting">
+  <h3>⚙️ 设置</h3>
+  <div>
+    <p>自定义桌面图标（上传图片后，需要重新添加到iPhone主屏幕生效）</p>
+    <img id="iconPreview">
+    <div class="flex">
+      <input type="file" id="iconUpload" accept="image/*" class="hide" onchange="handleIconUpload(event)">
+      <button onclick="document.getElementById('iconUpload').click()">选择图标图片</button>
+      <button class="danger" onclick="clearCustomIcon()">清除自定义图标</button>
+    </div>
+    <p style="margin-top:12px;font-size:13px;color:#777">提示：推荐正方形图片，简洁可爱，图片仅保存在本机</p>
+  </div>
+</div>
+
+<script>
+let billList = JSON.parse(localStorage.getItem('bills')) || []
+let accountList = JSON.parse(localStorage.getItem('accounts')) || [
+  {id:1,name:'💴 现金',balance:0},
+  {id:2,name:'💚 微信',balance:0},
+  {id:3,name:'💙 支付宝',balance:0},
+  {id:4,name:'💳 银行卡',balance:0}
+]
+let budgetList = JSON.parse(localStorage.getItem('budgets')) || []
+let bookList = JSON.parse(localStorage.getItem('books')) || ['个人账本','家庭账本']
+const cateExp = [
+  {name:'🍜 餐饮',key:'餐饮'},
+  {name:'🚗 交通',key:'交通'},
+  {name:'🛍️ 购物',key:'购物'},
+  {name:'🏠 房租',key:'房租'},
+  {name:'💧 水电',key:'水电'},
+  {name:'🏥 医疗',key:'医疗'},
+  {name:'🎮 娱乐',key:'娱乐'},
+  {name:'📦 其他支出',key:'其他支出'}
+]
+const cateInc = [
+  {name:'💼 工资',key:'工资'},
+  {name:'🧧 红包',key:'红包'},
+  {name:'💻 兼职',key:'兼职'},
+  {name:'📈 理财',key:'理财'},
+  {name:'✨ 其他收入',key:'其他收入'}
+]
+let chartPie,chartLine
+let chatBox = document.getElementById('chatBox')
+let rec
+let calYear = new Date().getFullYear()
+let calMonth = new Date().getMonth()
+let customIcon = localStorage.getItem('customIcon') || ""
+
+if(customIcon){
+  document.getElementById('iconPreview').src = customIcon
+}
+
+// 主题切换
+function setTheme(cls) {
+  document.body.className = cls;
+  localStorage.setItem('theme', cls);
+  renderChart();
+}
+const savedTheme = localStorage.getItem('theme');
+if(savedTheme) setTheme(savedTheme);
+
+// 标签切换
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'))
+    document.querySelectorAll('.tab-content').forEach(x=>x.classList.add('hide'))
+    t.classList.add('active')
+    let tid = t.dataset.tab
+    document.getElementById(tid).classList.remove('hide')
+    if(tid==='stat'){
+      renderChart()
+      const exp = billList.filter(x=>x.type==='exp').reduce((s,i)=>s+i.money,0)
+      const inc = billList.filter(x=>x.type==='inc').reduce((s,i)=>s+i.money,0)
+      if(inc - exp > 0){
+        const pop = document.getElementById('starPop')
+        pop.classList.add('show')
+        setTimeout(()=>pop.classList.remove('show'),1200)
+      }
+    }
+    if(tid==='calendar') renderCalendar()
+  }
+})
+
+// 分类下拉
+function initSelect(){
+  const type = document.getElementById('type').value
+  const cateSel = document.getElementById('cate')
+  cateSel.innerHTML=''
+  let list = type==='exp'?cateExp:cateInc
+  list.forEach(c=>cateSel.innerHTML+=`<option value="${c.key}">${c.name}</option>`)
+
+  const accSel = document.getElementById('fromAcc')
+  const toSel = document.getElementById('toAcc')
+  accSel.innerHTML=''
+  toSel.innerHTML=''
+  accountList.forEach(a=>{
+    accSel.innerHTML+=`<option value="${a.id}">${a.name}</option>`
+    toSel.innerHTML+=`<option value="${a.id}">${a.name}</option>`
+  })
+  document.getElementById('toAcc').classList.toggle('hide',type!=='trans')
+
+  const bookSel = document.getElementById('book')
+  bookSel.innerHTML=''
+  bookList.forEach(b=>bookSel.innerHTML+=`<option value="${b}">${b}</option>`)
+
+  const budCate = document.getElementById('budCate')
+  budCate.innerHTML=''
+  const allCate = [...cateExp,...cateInc]
+  allCate.forEach(c=>budCate.innerHTML+=`<option value="${c.key}">${c.name}</option>`)
+}
+document.getElementById('type').onchange=initSelect
+
+// 新增账单
+function addBill(){
+  const type = document.getElementById('type').value
+  const money = Number(document.getElementById('money').value)
+  const cate = document.getElementById('cate').value
+  const from = Number(document.getElementById('fromAcc').value)
+  const to = Number(document.getElementById('toAcc').value)
+  const remark = document.getElementById('remark').value
+  const date = document.getElementById('date').value || new Date().toISOString().split('T')[0]
+  const book = document.getElementById('book').value
+  if(!money||money<=0) return alert('🥺 金额不能为空哦')
+  const bill = {id:Date.now(),type,money,cate,from,to,remark,date,book}
+  billList.push(bill)
+  saveData()
+  renderTable()
+  renderCalendar()
+  initSelect()
+  alert('🥳 记账成功啦！')
+}
+function delBill(id){
+  billList = billList.filter(b=>b.id!==id)
+  saveData();renderTable();renderCalendar()
+}
+
+// 账户
+function addAccount(){
+  const name = document.getElementById('accName').value.trim()
+  const bal = Number(document.getElementById('accBal').value)||0
+  if(!name) return alert('🥺 账户名不能为空')
+  accountList.push({id:Date.now(),name,balance:bal})
+  saveData();renderAccount()
+}
+function renderAccount(){
+  let html=''
+  accountList.forEach(a=>{
+    html += `<div class="flex-between"><span>${a.name}：${a.balance.toFixed(2)}</span>
+    <button class="danger" onclick="delAcc(${a.id})">删除</button></div>`
+  })
+  document.getElementById('accList').innerHTML=html
+}
+function delAcc(id){
+  accountList = accountList.filter(a=>a.id!==id)
+  saveData();renderAccount()
+}
+
+// 预算
+function saveBudget(){
+  const c = document.getElementById('budCate').value
+  const v = Number(document.getElementById('budVal').value)
+  if(!v) return alert('🥺 预算金额不能为空')
+  budgetList = budgetList.filter(b=>b.cate!==c)
+  budgetList.push({cate:c,val:v})
+  saveData();renderBudget()
+}
+function renderBudget(){
+  let html=''
+  budgetList.forEach(b=>{
+    let use = billList.filter(x=>x.type==='exp'&&x.cate===b.cate).reduce((s,i)=>s+i.money,0)
+    let over = use>b.val
+    html += `<div class="flex-between"><span>${b.cate}：预算${b.val}，已花${use.toFixed(2)} ${over?'💢超支啦！':'✅正常'}</span>
+    <button class="danger" onclick="delBud('${b.cate}')">删除</button></div>`
+  })
+  document.getElementById('budList').innerHTML=html
+}
+function delBud(cate){
+  budgetList = budgetList.filter(b=>b.cate!==cate)
+  saveData();renderBudget()
+}
+
+// 账单列表渲染
+function renderTable(){
+  const tb = document.getElementById('billTable')
+  tb.innerHTML=''
+  billList.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(b=>{
+    let tText = b.type==='exp'?'💸支出':b.type==='inc'?'💵收入':'🔄转账'
+    let cls = b.type==='exp'?'red':'green'
+    let accName = accountList.find(x=>x.id===b.from)?.name
+    tb.innerHTML += `<tr>
+      <td>${b.date}</td>
+      <td class="${cls}">${tText}</td>
+      <td>${b.cate}</td>
+      <td>${b.money.toFixed(2)}</td>
+      <td>${accName}</td>
+      <td>${b.remark}</td>
+      <td>${b.book}</td>
+      <td><button class="danger" onclick="delBill(${b.id})">删</button></td>
+    </tr>`
+  })
+}
+
+// 日历
+function renderCalendar(){
+  const body = document.getElementById('calBody')
+  document.getElementById('calTitle').innerText = `${calYear}年${calMonth+1}月`
+  body.innerHTML = ""
+  const first = new Date(calYear,calMonth,1)
+  const last = new Date(calYear,calMonth+1,0)
+  const startDay = first.getDay()
+  const totalDays = last.getDate()
+  // 前面空白
+  for(let i=0;i<startDay;i++){
+    body.innerHTML += `<div class="calendar-date empty"></div>`
+  }
+  for(let d=1;d<=totalDays;d++){
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const dayBills = billList.filter(b=>b.date===dateStr)
+    const isToday = new Date().toDateString() === new Date(calYear,calMonth,d).toDateString()
+    let hasData = dayBills.length>0
+    let sumIn = dayBills.filter(x=>x.type==='inc').reduce((s,i)=>s+i.money,0)
+    let sumOut = dayBills.filter(x=>x.type==='exp').reduce((s,i)=>s+i.money,0)
+    let cls = isToday ? 'calendar-date today' : 'calendar-date'
+    if(hasData) cls += " has-data"
+    body.innerHTML += `<div class="${cls}" onclick="openDayPopup('${dateStr}')">
+      <div>${d}</div>
+      <div class="calendar-mini">${sumOut>0?'-'+sumOut.toFixed(0):''} ${sumIn>0?'+'+sumIn.toFixed(0):''}</div>
+    </div>`
+  }
+}
+function changeMonth(delta){
+  calMonth += delta
+  if(calMonth>11){calMonth=0;calYear++}
+  if(calMonth<0){calMonth=11;calYear--}
+  renderCalendar()
+}
+function openDayPopup(dateStr){
+  const pop = document.getElementById('dayPopup')
+  document.getElementById('popupDayTitle').innerText = dateStr
+  const listWrap = document.getElementById('popupBillList')
+  listWrap.innerHTML = ""
+  const dayBills = billList.filter(b=>b.date===dateStr)
+  if(dayBills.length===0){
+    listWrap.innerHTML = "<p>当日无账单</p>"
+  }else{
+    dayBills.forEach(b=>{
+      let tText = b.type==='exp'?'💸支出':b.type==='inc'?'💵收入':'🔄转账'
+      let cls = b.type==='exp'?'red':'green'
+      listWrap.innerHTML += `<div style="padding:6px 0;border-bottom:1px solid var(--light)">
+        <span class="${cls}">${tText} ${b.money}</span> · ${b.cate}<br>
+        <span style="font-size:12px">${b.remark}</span>
+      </div>`
+    })
+  }
+  pop.classList.add('show')
+}
+function closeDayPopup(){
+  document.getElementById('dayPopup').classList.remove('show')
+}
+
+// 图表
+function renderChart(){
+  const expList = billList.filter(x=>x.type==='exp')
+  const incList = billList.filter(x=>x.type==='inc')
+  const totalExp = expList.reduce((s,i)=>s+i.money,0)
+  const totalInc = incList.reduce((s,i)=>s+i.money,0)
+  const surplus = totalInc-totalExp
+  document.getElementById('sumInfo').innerHTML=`总收入：<span class="green">${totalInc.toFixed(2)}</span>｜总支出：<span class="red">${totalExp.toFixed(2)}</span>｜结余：${surplus.toFixed(2)}`
+
+  const group = {}
+  expList.forEach(b=>{group[b.cate]=(group[b.cate]||0)+b.money})
+  const labels = Object.keys(group)
+  const data = Object.values(group)
+  if(chartPie) chartPie.destroy()
+  chartPie = new Chart(document.getElementById('pieChart'),{
+    type:'pie',data:{labels,datasets:[{data,backgroundColor:['#f2849e','#86d1a8','#99a8f7','#f7c486','#b494d8','#6ccde0','#f79a9a']}]},
+    options:{plugins:{title:{text:'支出分类占比',display:true}}}
+  })
+
+  const dayGroup = {}
+  billList.forEach(b=>{
+    if(!dayGroup[b.date]) dayGroup[b.date]={inc:0,exp:0}
+    if(b.type==='inc') dayGroup[b.date].inc += b.money
+    if(b.type==='exp') dayGroup[b.date].exp += b.money
+  })
+  const days = Object.keys(dayGroup).sort()
+  const incData = days.map(d=>dayGroup[d].inc)
+  const expData = days.map(d=>dayGroup[d].exp)
+  if(chartLine) chartLine.destroy()
+  chartLine = new Chart(document.getElementById('lineChart'),{
+    type:'line',data:{labels:days,datasets:[
+      {label:'收入',data:incData,borderColor:'#52b878',fill:false},
+      {label:'支出',data:expData,borderColor:'#f47174',fill:false}
+    ]},options:{plugins:{title:{text:'每日收支趋势',display:true}}}
+  })
+}
+
+// 导出CSV
+function exportExcel(){
+  let csv = '日期,类型,分类,金额,账户,备注,账本\n'
+  billList.forEach(b=>{
+    let t = b.type==='exp'?'支出':b.type==='inc'?'收入':'转账'
+    let acc = accountList.find(x=>x.id===b.from)?.name
+    csv += `${b.date},${t},${b.cate},${b.money},${acc},${b.remark},${b.book}\n`
+  })
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'})
+  const a = document.createElement('a')
+  a.href=URL.createObjectURL(blob)
+  a.download='软萌记账账单.csv'
+  a.click()
+}
+function clearAll(){
+  if(!confirm('🥺 确定清空全部账单？找不回来咯！')) return
+  billList=[]
+  saveData();renderTable();renderCalendar()
+}
+function saveData(){
+  localStorage.setItem('bills',JSON.stringify(billList))
+  localStorage.setItem('accounts',JSON.stringify(accountList))
+  localStorage.setItem('budgets',JSON.stringify(budgetList))
+}
+
+// 自定义图标上传
+function handleIconUpload(e){
+  const file = e.target.files[0]
+  if(!file) return
+  const reader = new FileReader()
+  reader.onload = function(ev){
+    const src = ev.target.result
+    customIcon = src
+    localStorage.setItem('customIcon',src)
+    document.getElementById('iconPreview').src = src
+  }
+  reader.readAsDataURL(file)
+}
+function clearCustomIcon(){
+  customIcon = ""
+  localStorage.removeItem('customIcon')
+  document.getElementById('iconPreview').src = ""
+}
+
+// AI语音、OCR
+function appendMsg(who,content){
+  const div = document.createElement('div');
+  div.className = 'msg '+(who==='user'?'msg-user':'msg-ai');
+  div.innerText = content;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+function clearChat(){
+  chatBox.innerHTML = '<div class="msg msg-ai">对话清空啦，继续记账🍡</div>';
+}
+function startVoiceRec(){
+  if(!('webkitSpeechRecognition' in window)){
+    appendMsg('ai','❌ 只能用Safari打开！');
+    return;
+  }
+  rec = new webkitSpeechRecognition();
+  rec.lang = 'zh-CN';
+  rec.continuous = false;
+  rec.interimResults = false;
+  appendMsg('ai','🎤 我听着呢，快说你的消费吧！');
+  rec.onresult = (e)=>{
+    const text = e.results[0][0].transcript;
+    appendMsg('user',text);
+    parseTextAndCreateBill(text);
+  }
+  rec.start();
+}
+document.getElementById('imgUpload').onchange = async function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const preview = document.getElementById('previewImg');
+  preview.classList.remove('hide');
+  preview.src = URL.createObjectURL(file);
+  appendMsg('ai','📷 正在识别小票文字，请稍等...');
+  try{
+    const res = await Tesseract.recognize(file,'chi_sim');
+    const ocrText = res.data.text;
+    appendMsg('ai','📝 小票识别文字：\n'+ocrText);
+    parseTextAndCreateBill(ocrText);
+  }catch(err){
+    appendMsg('ai','❌ 识别失败：'+err.message);
+  }
+}
+function sendAiMsg(){
+  const txt = document.getElementById('aiInput').value.trim();
+  if(!txt) return;
+  appendMsg('user',txt);
+  document.getElementById('aiInput').value='';
+  parseTextAndCreateBill(txt);
+}
+function parseTextAndCreateBill(text){
+  appendMsg('ai','🤖 正在解析：'+text);
+  let moneyReg = /(\d+\.?\d*)/;
+  let moneyMatch = text.match(moneyReg);
+  if(!moneyMatch){
+    appendMsg('ai','😥 没有找到金额，试试：奶茶20元');
+    return;
+  }
+  const money = parseFloat(moneyMatch[1]);
+  let type = 'exp';
+  if(text.includes('工资')||text.includes('收入')||text.includes('红包')) type='inc';
+  let cateList = type==='exp'?cateExp:cateInc;
+  let cateObj = cateList.find(item=>text.includes(item.key))
+  let cate = cateObj ? cateObj.key : (type==='exp'?'其他支出':'其他收入')
+  const date = new Date().toISOString().split('T')[0];
+  const fromAcc = accountList[0].id;
+  const book = bookList[0];
+  const bill = {id:Date.now(),type,money,cate,from:fromAcc,to:fromAcc,remark:text,date,book}
+  billList.push(bill);
+  saveData();renderTable();renderCalendar();
+  appendMsg('ai','✅ 记账成功！【'+(type==='exp'?'💸支出':'💵收入')+'】 '+cate+' '+money+'元');
+}
+
+window.onload=()=>{
+  initSelect()
+  renderTable()
+  renderAccount()
+  renderBudget()
+  renderCalendar()
+  const now = new Date().toISOString().split('T')[0]
+  document.getElementById('date').value = now
+}
+</script>
+</body>
+</html>
